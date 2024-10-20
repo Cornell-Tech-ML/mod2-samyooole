@@ -52,8 +52,6 @@ class Variable(Protocol):
         """
         ...
 
-
-
     @property
     def unique_id(self) -> int:
         """Unique identifier for this variable."""
@@ -101,7 +99,7 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
             for m in var.parents:
                 if not m.is_constant():
                     visit(m)
-        
+
         seen.add(var.unique_id)
         order.insert(0, var)
 
@@ -127,7 +125,6 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
     queue = topological_sort(variable)
     derivatives = {}
     derivatives[variable.unique_id] = deriv
-
 
     for var in queue:
         deriv = derivatives[var.unique_id]

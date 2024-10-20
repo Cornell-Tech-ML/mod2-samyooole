@@ -105,8 +105,6 @@ class Log(ScalarFunction):
 # To implement.
 
 
-
-
 class Mul(ScalarFunction):
     """Multiply function f(x, y) = x * y"""
 

@@ -1,7 +1,4 @@
-"""
-Be sure you have minitorch installed in you Virtual Env.
->>> pip install -Ue .
-"""
+
 
 import minitorch
 import numpy as np
@@ -39,34 +36,34 @@ class Linear(minitorch.Module):
     def forward(self, x):
         # Retrieve weights and input rows
         weights = self.weights.value
-       
-        
+
+
         # Perform element-wise multiplication
         #weighted_sum = x_reshaped * weights_reshaped
-        
-        
+
+
 
         batch_size = x.shape[0]
-        
+
         # Step 1: Reshape x to (batch_size, in_size, 1)
         x_reshaped = x.view([batch_size, self.in_size, 1])
-        
+
         # Step 2: Reshape weights to (1, in_size, out_size)
         weights_reshaped = self.weights.value.view([1, self.in_size, self.out_size])
-        
+
 
         #print("in_size: " +  str(self.in_size))
         #print("out_size: " +  str(self.out_size))
         #print(weights_reshaped.shape)
         #print(x_reshaped.shape)
-        
+
 
         # Step 3: Broadcast and multiply
         intermediate = x_reshaped * weights_reshaped
-        
+
         # Step 4: Sum along the input dimension (axis 1)
         output = intermediate.sum(1)
-        
+
         # Step 5: Add bias
         output = output + self.bias.value
 
@@ -79,21 +76,7 @@ class Linear(minitorch.Module):
 
 
         return output
-    
-"""
-def forward(self, x):
-        # Reshape x to (batch_size, in_size, 1) for proper broadcasting
-        x_reshaped = x.view([x.shape[0], x.shape[1], 1])
-        
-        # Compute x * self.weights.value
-        weighted_sum = x_reshaped * self.weights.value
-        
-        # Sum along dimension 2 (which is the original input dimension) and add bias
-        output = weighted_sum.sum(1) + self.bias.value
 
-        
-
-        return output"""
 
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)

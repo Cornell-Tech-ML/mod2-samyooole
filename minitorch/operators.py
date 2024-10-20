@@ -103,6 +103,7 @@ def relu_back(x: float, y: float) -> float:
     """Computes the derivative of the ReLU function of the first argument, x, times a second argument, y"""
     return 0.0 if x <= 0.0 else y
 
+
 def permute(x: float, dims: Iterable[int]) -> float:
     """Permute the dimensions of a tensor."""
     return x
