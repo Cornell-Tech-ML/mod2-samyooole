@@ -72,6 +72,7 @@ class TensorBackend:
         self.exp_map = ops.map(operators.exp)
         self.id_map = ops.map(operators.id)
         self.inv_map = ops.map(operators.inv)
+        # self.permute_map = ops.map(operators.permute)  # Removed due to incompatible function signature
 
         # Zips
         self.add_zip = ops.zip(operators.add)
@@ -82,6 +83,7 @@ class TensorBackend:
         self.relu_back_zip = ops.zip(operators.relu_back)
         self.log_back_zip = ops.zip(operators.log_back)
         self.inv_back_zip = ops.zip(operators.inv_back)
+        self.sigmoid_back_zip = ops.zip(operators.sigmoid_back)
 
         # Reduce
         self.add_reduce = ops.reduce(operators.add, 0.0)
@@ -261,8 +263,24 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        if np.array_equal(out_shape, in_shape):
+            for out_idx in range(len(out)):
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+                to_index(out_idx, out_shape, out_index)
+                in_pos = index_to_position(out_index, in_strides)
+                out_pos = index_to_position(out_index, out_strides)
+                out[out_pos] = fn(in_storage[in_pos])
+        else:  # assume they broadcast
+            for out_idx in range(len(out)):
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+                to_index(out_idx, out_shape, out_index)
+                in_index = np.zeros(len(in_shape), dtype=np.int32)
+                for i in range(len(in_shape)):
+                    if in_shape[i] != 1:
+                        in_index[i] = out_index[i]
+                in_pos = index_to_position(in_index, in_strides)
+                out_pos = index_to_position(out_index, out_strides)
+                out[out_pos] = fn(in_storage[in_pos])
 
     return _map
 
@@ -306,8 +324,37 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        if len(b_shape) < len(out_shape):
+            # Pad b_strides with a leading 0 for the batch dimension
+            b_strides = np.array([0] * (len(out_shape) - len(b_shape)) + list(b_strides), dtype=np.int32)
+            b_shape = np.array([1] * (len(out_shape) - len(b_shape)) + list(b_shape), dtype=np.int32)
+
+        if np.array_equal(a_shape, b_shape):
+            for out_idx in range(len(out)):
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+                to_index(out_idx, out_shape, out_index)
+                a_pos = index_to_position(out_index, a_strides)
+                b_pos = index_to_position(out_index, b_strides)
+                out_pos = index_to_position(out_index, out_strides)
+                out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
+        else:  # assume they broadcast
+            for out_idx in range(len(out)):
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+                to_index(out_idx, out_shape, out_index)
+                a_index = np.zeros(len(out_shape), dtype=np.int32)
+                b_index = np.zeros(len(out_shape), dtype=np.int32)
+                for i in range(len(out_shape)):
+                    if i < len(a_shape) and a_shape[i] != 1:
+                        a_index[i] = out_index[i]  # Use out_index when a_shape[i] != 1
+                    if i < len(b_shape) and b_shape[i] != 1:
+                        b_index[i] = out_index[i]  # Use out_index when b_shape[i] != 1
+
+                a_pos = index_to_position(a_index[:len(a_shape)], a_strides)
+                b_pos = index_to_position(b_index[:len(b_shape)], b_strides)
+                out_pos = index_to_position(out_index, out_strides)
+
+                out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
+        #raise NotImplementedError("Need to implement for Task 2.3")
 
     return _zip
 
@@ -338,7 +385,18 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        for out_idx in range(len(out)):
+            out_index = np.zeros(len(out_shape), dtype=np.int32)
+            to_index(out_idx, out_shape, out_index)
+            a_index = np.zeros(len(a_shape), dtype=np.int32)
+            to_index(out_idx, out_shape, a_index)
+            for i in range(a_shape[reduce_dim]):
+                a_index[reduce_dim] = i
+                a_pos = index_to_position(a_index, a_strides)
+                out_pos = index_to_position(out_index, out_strides)
+                out[out_pos] = fn(out[out_pos], a_storage[a_pos])
+
+        #raise NotImplementedError("Need to implement for Task 2.3")
 
     return _reduce
 

@@ -12,6 +12,11 @@ from .autodiff import Context, Variable, backpropagate
 from .tensor_data import TensorData
 
 # Comment these out if not yet implemented
+
+
+
+
+
 from .tensor_functions import (
     EQ,
     LT,
@@ -26,12 +31,13 @@ from .tensor_functions import (
     Mul,
     Neg,
     Permute,
-    ReLU,
+    ReLU,  
     Sigmoid,
     Sum,
     View,
     tensor,
 )
+
 
 if TYPE_CHECKING:
     from typing import Any, Iterable, List, Optional, Sequence, Tuple, Type, Union
@@ -84,8 +90,11 @@ class Tensor:
         assert isinstance(v, TensorData)
         assert backend is not None
         self._tensor = v
+        self.size = self._tensor.size
+        self.dims = self._tensor.dims
         self.history = back
         self.backend = backend
+        
         self.grad = None
         if name is not None:
             self.name = name
@@ -93,6 +102,11 @@ class Tensor:
             self.name = str(self.unique_id)
 
         self.f = backend
+    
+
+    def zero_grad_(self) -> None:
+        """Zero out the gradient."""
+        self.grad = None
 
     def requires_grad_(self, x: bool) -> None:
         self.history = History()
@@ -284,4 +298,113 @@ class Tensor:
         return self._tensor.shape
 
     # Functions
-    # TODO: Implement for Task 2.3.
+
+    def __add__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self, self._ensure_tensor(b))
+
+    def __radd__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self._ensure_tensor(b), self)
+    
+    def __sub__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self, Neg.apply(self._ensure_tensor(b)))
+    
+    def __mul__(self, b: TensorLike) -> Tensor:
+        b = self._ensure_tensor(b)
+        return Mul.apply(self, b)
+    
+    def __rmul__(self, b: TensorLike) -> Tensor:
+        b = self._ensure_tensor(b)
+        return Mul.apply(b, self)
+    
+    def __lt__(self, b: TensorLike) -> Tensor:
+        return LT.apply(self, self._ensure_tensor(b))
+    
+    def __eq__(self, b: TensorLike) -> Tensor:
+        return EQ.apply(self, self._ensure_tensor(b))
+    
+    def __gt__(self, b: TensorLike) -> Tensor:
+        return LT.apply(self._ensure_tensor(b), self)
+    
+    def __neg__(self) -> Tensor:
+        return Neg.apply(self)
+    
+    
+    
+    
+    def all(self, dim: Optional[int] = None) -> Tensor:
+        """Check if all elements are True over a given dimension.
+
+        Args:
+        ----
+            dim : Dimension to check over. If None, checks over all dimensions.
+
+        Returns:
+        -------
+            Tensor with the result of the check.
+
+        """
+        if dim is None:
+            result = self
+            for d in range(len(self.shape) - 1, -1, -1):
+                result = All.apply(result, self._ensure_tensor(d))
+            return result
+        else:
+            return All.apply(self, self._ensure_tensor(dim))
+    
+    def is_close(self, b: TensorLike) -> Tensor:
+        return IsClose.apply(self, self._ensure_tensor(b))
+    
+    def sigmoid(self) -> Tensor:
+        return Sigmoid.apply(self)
+    
+    def relu(self) -> Tensor:
+        return ReLU.apply(self)
+    
+    def log(self) -> Tensor:
+        return Log.apply(self)
+    
+    def exp(self) -> Tensor:
+        return Exp.apply(self)
+    
+    
+    def sum(self, dim: Optional[int] = None) -> Tensor:
+        """Sum of tensor elements over a given dimension.
+
+        Args:
+        ----
+            dim : Dimension to sum over. If None, sums over all dimensions.
+
+        Returns:
+        -------
+            Summed tensor.
+
+        """
+        if dim is None:
+            result = self
+            for d in range(len(self.shape) - 1, -1, -1):
+                result = Sum.apply(result, self._ensure_tensor(d))
+
+            if result.size == 1:
+                return result.view((1,)) ## yep this is it
+            return result
+            
+        else:
+            return Sum.apply(self, self._ensure_tensor(dim))
+    
+
+    # still must fix mean and view. and also permute
+    def mean(self, dim: Optional[int] = None) -> Tensor:
+        """Calculate the mean of the tensor elements."""
+        return self.sum(dim=dim) / operators.prod(self.shape) # just use the sum one we have already
+    
+    def view(self, shape: UserShape) -> Tensor:
+        """Return a tensor with the same data but a different shape."""
+        # Ensure shape is a tuple or list
+        if isinstance(shape, int):
+            shape = (shape,)  # Convert int to tuple
+        return View.apply(self, Tensor.make(list(shape), (len(shape),), backend=self.backend))
+    
+    def permute(self, *dims: int) -> Tensor:
+        """Return a tensor with its dimensions permuted."""
+        return Permute.apply(self, Tensor.make(list(dims), (len(dims),), backend=self.backend))
+    
