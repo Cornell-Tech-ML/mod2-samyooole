@@ -37,15 +37,21 @@ def index_to_position(index: Index, strides: Strides) -> int:
     storage based on strides.
 
     Args:
+    ----
         index : index tuple of ints
         strides : tensor strides
 
     Returns:
+    -------
         Position in storage
 
     """
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError("Need to implement for Task 2.1")
+    final_index = 0
+
+    for idx, stride in enumerate(strides):
+        final_index += index[idx] * stride
+
+    return final_index
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
@@ -55,13 +61,38 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     may not be the inverse of `index_to_position`.
 
     Args:
+    ----
         ordinal: ordinal position to convert.
         shape : tensor shape.
         out_index : return index corresponding to position.
 
     """
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError("Need to implement for Task 2.1")
+    # shape is an object that could look like [4,5,2,3] - there are 4 dimensions to this tensor, and we have to
+
+    # following convention, we count up from the least significant element (rightmost)
+    # intuitively, that's like listing 0, 1, 2, 3 across the first row of columns, before going 4,5,6,7 across the next row of columns
+
+    list_of_modulos = []
+    modulo_value = 1
+    # print(ordinal)
+    # print(shape)
+
+    for shape_size in reversed(
+        shape
+    ):  # shape is a reverse iterator? if it's not, try putting reversed back on this
+        modulo_value *= shape_size
+        list_of_modulos.append(modulo_value)
+
+    list_of_modulos = reversed(list_of_modulos)
+
+    # print(list(list_of_modulos))
+
+    # in the example given above, this would create a list that looks like [120,30,6,3], and is the modulo value that we divide by in order to get the index accordingly
+
+    for i, modulo_value in enumerate(list_of_modulos):
+        out_index[i] = (ordinal % modulo_value) // (modulo_value // shape[i])
+
+    # raise NotImplementedError("Need to implement for Task 2.1")
 
 
 def broadcast_index(
@@ -74,35 +105,79 @@ def broadcast_index(
     removed.
 
     Args:
+    ----
         big_index : multidimensional index of bigger tensor
         big_shape : tensor shape of bigger tensor
         shape : tensor shape of smaller tensor
         out_index : multidimensional index of smaller tensor
 
     Returns:
+    -------
         None
 
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    # Start from the rightmost dimension and work backwards
+    small_dim = len(shape)
+    for i in range(1, small_dim + 1):
+        if shape[-i] == 1:
+            out_index[-i] = 0
+        else:
+            out_index[-i] = big_index[-i]
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """Broadcast two shapes to create a new union shape.
 
     Args:
-        shape1 : first shape
-        shape2 : second shape
+    ----
+        shape1 : first shape - sequence of integers
+        shape2 : second shape - sequence of integers
 
     Returns:
-        broadcasted shape
+    -------
+        broadcasted shape - sequence of integers
 
     Raises:
+    ------
         IndexingError : if cannot broadcast
 
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    # basically implementing the 3 rules
+
+    # rule 1: any dimension of size 1 can be zipped with dimensions of size n>1 by assuming the dimension is copied n times
+
+    # rule 2: extra dimensions of shape 1 can be added to ensure the same number of dimensions with another tensor
+
+    # rule 3: any extra dimension of size 1 can only be added on the left side of the shape
+
+    reverse_index = 0
+    counter = 0
+
+    broadcast_shape = []
+
+    # Reverse the shapes to align dimensions from the right
+    shape1 = shape1[::-1]
+    shape2 = shape2[::-1]
+
+    while counter < max(len(shape1), len(shape2)):
+        this_shape1 = shape1[reverse_index] if reverse_index < len(shape1) else 1
+        this_shape2 = shape2[reverse_index] if reverse_index < len(shape2) else 1
+
+        if this_shape1 == 1:
+            broadcast_shape.append(this_shape2)
+        elif this_shape2 == 1:
+            broadcast_shape.append(this_shape1)
+        elif this_shape1 == this_shape2:
+            broadcast_shape.append(this_shape1)
+        else:
+            raise IndexingError(
+                f"Shapes {shape1[::-1]} and {shape2[::-1]} cannot be broadcasted"
+            )
+
+        counter += 1
+        reverse_index += 1
+
+    return tuple(reversed(broadcast_shape))
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
@@ -157,7 +232,8 @@ class TensorData:
     def is_contiguous(self) -> bool:
         """Check that the layout is contiguous, i.e. outer dimensions have bigger strides than inner dimensions.
 
-        Returns:
+        Returns
+        -------
             bool : True if contiguous
 
         """
@@ -170,9 +246,11 @@ class TensorData:
 
     @staticmethod
     def shape_broadcast(shape_a: UserShape, shape_b: UserShape) -> UserShape:
+        """Broadcast two shapes to create a new union shape."""
         return shape_broadcast(shape_a, shape_b)
 
     def index(self, index: Union[int, UserIndex]) -> int:
+        """Convert a user index to a storage index."""
         if isinstance(index, int):
             aindex: Index = array([index])
         else:  # if isinstance(index, tuple):
@@ -196,6 +274,17 @@ class TensorData:
         return index_to_position(array(index), self._strides)
 
     def indices(self) -> Iterable[UserIndex]:
+        """Generate indices for each element in the tensor.
+
+        This method converts a linear index to a multi-dimensional index
+        based on the shape of the tensor and yields each index as a tuple.
+
+        Returns
+        -------
+            Iterable[UserIndex]: An iterable of indices, where each index is a tuple
+            representing the position of an element in the tensor.
+
+        """
         lshape: Shape = array(self.shape)
         out_index: Index = array(self.shape)
         for i in range(self.size):
@@ -207,10 +296,12 @@ class TensorData:
         return tuple((random.randint(0, s - 1) for s in self.shape))
 
     def get(self, key: UserIndex) -> float:
+        """Get a value from the tensor."""
         x: float = self._storage[self.index(key)]
         return x
 
     def set(self, key: UserIndex, val: float) -> None:
+        """Set a value in the tensor."""
         self._storage[self.index(key)] = val
 
     def tuple(self) -> Tuple[Storage, Shape, Strides]:
@@ -221,9 +312,11 @@ class TensorData:
         """Permute the dimensions of the tensor.
 
         Args:
+        ----
             *order: a permutation of the dimensions
 
         Returns:
+        -------
             New `TensorData` with the same storage and a new dimension order.
 
         """
@@ -231,8 +324,11 @@ class TensorData:
             range(len(self.shape))
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
 
-        # TODO: Implement for Task 2.1.
-        raise NotImplementedError("Need to implement for Task 2.1")
+        new_shape = tuple(self.shape[i] for i in order)
+        new_strides = tuple(self._strides[i] for i in order)
+
+        new_tensor_obj = TensorData(self._storage, new_shape, new_strides)
+        return new_tensor_obj
 
     def to_string(self) -> str:
         """Convert to string"""

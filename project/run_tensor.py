@@ -1,9 +1,8 @@
-"""
-Be sure you have minitorch installed in you Virtual Env.
->>> pip install -Ue .
-"""
+
 
 import minitorch
+import numpy as np
+
 
 # Use this function to make a random parameter in
 # your module.
@@ -12,6 +11,72 @@ def RParam(*shape):
     return minitorch.Parameter(r)
 
 # TODO: Implement for Task 2.5.
+# create Network and Linear
+
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers):
+        super().__init__()
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, x):
+        middle = self.layer1(x).relu()
+        end = self.layer2(middle).relu()
+        return self.layer3(end).sigmoid()
+
+class Linear(minitorch.Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.in_size = in_size
+        self.out_size = out_size
+
+    def forward(self, x):
+        # Retrieve weights and input rows
+        weights = self.weights.value
+
+
+        # Perform element-wise multiplication
+        #weighted_sum = x_reshaped * weights_reshaped
+
+
+
+        batch_size = x.shape[0]
+
+        # Step 1: Reshape x to (batch_size, in_size, 1)
+        x_reshaped = x.view([batch_size, self.in_size, 1])
+
+        # Step 2: Reshape weights to (1, in_size, out_size)
+        weights_reshaped = self.weights.value.view([1, self.in_size, self.out_size])
+
+
+        #print("in_size: " +  str(self.in_size))
+        #print("out_size: " +  str(self.out_size))
+        #print(weights_reshaped.shape)
+        #print(x_reshaped.shape)
+
+
+        # Step 3: Broadcast and multiply
+        intermediate = x_reshaped * weights_reshaped
+
+        # Step 4: Sum along the input dimension (axis 1)
+        output = intermediate.sum(1)
+
+        # Step 5: Add bias
+        output = output + self.bias.value
+
+        # Collapse the output to (1, n)
+        output = output.view([batch_size, self.out_size])
+
+        #print(output)
+        #print('------------')
+
+
+
+        return output
+
 
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
