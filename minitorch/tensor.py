@@ -389,7 +389,7 @@ class Tensor:
                 result = Sum.apply(result, self._ensure_tensor(d))
 
             if result.size == 1:
-                return result.view((1,))  ## yep this is it
+                return result.view(1)  ## yep this is it
             return result
 
         else:
@@ -402,11 +402,8 @@ class Tensor:
             self.shape
         )  # just use the sum one we have already
 
-    def view(self, shape: UserShape) -> Tensor:
+    def view(self, *shape: int) -> Tensor:
         """Return a tensor with the same data but a different shape."""
-        # Ensure shape is a tuple or list
-        if isinstance(shape, int):
-            shape = (shape,)  # Convert int to tuple
         return View.apply(
             self, Tensor.make(list(shape), (len(shape),), backend=self.backend)
         )
